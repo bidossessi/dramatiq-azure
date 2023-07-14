@@ -24,7 +24,7 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: '3.x'
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
@@ -38,4 +38,4 @@ jobs:
       - name: Build package
         run: poetry build
       - name: Publish package
-        run: poetry publish
+        run: poetry build

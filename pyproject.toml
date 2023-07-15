@@ -5,19 +5,22 @@ version = "0.1.6"
 tag_format = "v$version"
 update_changelog_on_bump = true
 version_files = [
-    "pyproject.toml:version",
     "dramatiq_azure/__init__.py",
 ]
 
 [tool.poetry]
 name = "dramatiq_azure"
 version = "0.1.6"
+dynamic = ["version"]
 description = "Azure Queue Brokers for Dramatiq"
 authors = ["Stanislas H.B. Sodonon <stanislas.sodonon@gmail.com>"]
 repository = "https://github.com/bidossessi/dramatiq-azure"
 readme = 'README.md'
 keywords = ['dramatiq', 'azure', 'queue', 'broker']
 license = "Apache-2.0"
+
+[tool.setuptools.dynamic]
+version = {attr = "package.__version__"}
 
 [tool.poetry.dependencies]
 python = "^3.9"

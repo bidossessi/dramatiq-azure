@@ -362,13 +362,13 @@ files = [
 
 [[package]]
 name = "commitizen"
-version = "3.10.0"
+version = "3.13.0"
 description = "Python commitizen client tool"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "commitizen-3.10.0-py3-none-any.whl", hash = "sha256:8afa3547c6c5822c92c7ebd03ffda26cee4ab2301bd7def24cfa50a69fbe6c26"},
-    {file = "commitizen-3.10.0.tar.gz", hash = "sha256:52c819e7b474520330c3d554e79cb1b0172f2d9e0b8c32902df9a69971a7cd5b"},
+    {file = "commitizen-3.13.0-py3-none-any.whl", hash = "sha256:ff57069591ff109136b70841fe79a3434d0525748995531cceb4f3ccadb44ead"},
+    {file = "commitizen-3.13.0.tar.gz", hash = "sha256:53cd225ae44fc25cb1582f5d50cda78711a5a1d44a32fee3dcf7a22bc204ce06"},
 ]
 
 [package.dependencies]
@@ -1391,4 +1391,4 @@ identity = ["azure-identity"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "fe4f47f70c0cef39aff7d0a5c79a36aad3664fcdc190eb3674d2ccb34535e490"
+content-hash = "59eda9eff6e58d70acf902b1c89a40745b34e92b7e2f20250179b2229570f14e"

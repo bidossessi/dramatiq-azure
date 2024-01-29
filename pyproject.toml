@@ -37,7 +37,7 @@ commitizen = "^3.13.0"
 pre-commit = ">=2.17,<4.0"
 
 [tool.poetry.group.dev.dependencies]
-flake8-bugbear = "^23.7.10"
+flake8-bugbear = ">=23.7.10,<25.0.0"
 mccabe = "^0.7.0"
 isort = "^5.12.0"
 

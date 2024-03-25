@@ -24,6 +24,7 @@ Set-up pre-commit rules to automate styling and linting:
 
 ```shell
 poetry run pre-commit install
+poetry run pre-commit install --hook-type commit-msg
 ```
 
 Make sure the tests pass first (you will need [azurite](https://github.com/Azure/Azurite) running for this):

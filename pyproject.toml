@@ -29,7 +29,7 @@ azure-identity = {version = ">=1.13,<1.16", optional = true}
 [tool.poetry.dev-dependencies]
 flake8 = "^7.0.0"
 black = "^24.1.1"
-pytest = "^7.4.3"
+pytest = "^8.1.1"
 pytest-cov = "^4.1.0"
 mypy = "^1.8"
 pytest-env = "^1.1.3"

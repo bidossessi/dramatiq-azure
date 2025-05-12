@@ -113,6 +113,7 @@ dmypy.json
 # Editor
 .vscode
 .idea
+e2e.log
 
 # Extra
 .DS_Store

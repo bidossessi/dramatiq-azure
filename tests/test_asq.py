@@ -1,3 +1,4 @@
+import random
 import time
 
 import dramatiq
@@ -28,7 +29,7 @@ def test_can_enqueue_and_process_messages(asq_broker, worker, queue_name):
 def test_limits_prefetch_if_consumer_queue_is_full(
     asq_broker, worker, queue_name
 ):
-    # Given that I have an actor that stores incoming messages in a database
+    # Given an actor that stores incoming messages in a database
     db = []
 
     # Set the worker prefetch limit to 1
@@ -63,6 +64,9 @@ def test_can_enqueue_delayed_messages(asq_broker, worker, queue_name):
     start_time = time.time()
     do_work.send_with_options(args=(1,), delay=5000)
 
+    # Make sure the db is empty at first
+    assert db == []
+
     # And poll the database for a result each second
     for _ in range(60):
         if db:
@@ -79,7 +83,7 @@ def test_can_enqueue_delayed_messages(asq_broker, worker, queue_name):
 
 
 def test_cant_delay_messages_for_longer_than_7_days(asq_broker, queue_name):
-    # Given that I have an actor
+    # Given an actor
     @dramatiq.actor(queue_name=queue_name)
     def do_work():
         pass
@@ -87,7 +91,7 @@ def test_cant_delay_messages_for_longer_than_7_days(asq_broker, queue_name):
     # When I attempt to send that actor a message farther than 7 days into the future
     # Then I should get back a RuntimeError
     with pytest.raises(RuntimeError):
-        do_work.send_with_options(delay=7 * 25 * 60 * 60 * 1000)
+        do_work.send_with_options(delay=7 * 24 * 60 * 60 * 1001)
 
 
 def test_cant_enqueue_messages_that_are_too_large(asq_broker, queue_name):
@@ -103,13 +107,15 @@ def test_cant_enqueue_messages_that_are_too_large(asq_broker, queue_name):
 
 
 def test_can_requeue_consumed_messages(asq_broker, queue_name):
+    db = []
     # Given an actor
+
     @dramatiq.actor(queue_name=queue_name)
-    def do_work():
-        pass
+    def do_work(s):
+        db.append(s)
 
     # When I send that actor a message
-    do_work.send()
+    do_work.send("test")
 
     # And consume the message off the queue
     consumer = asq_broker.consume(queue_name)
@@ -151,7 +157,7 @@ def test_consumer_returns_none_with_empty_queue(queue_name):
     assert not second_message
 
 
-def test_flush_queues_returns_no_message(asq_broker, queue_name):
+def test_flushed_queues_returns_no_message(asq_broker, queue_name):
     # Given an actor
     @dramatiq.actor(queue_name=queue_name)
     def do_work():
@@ -199,11 +205,11 @@ def test_nacked_messages_go_to_dlq(queue_name):
     asq_broker.declare_queue(queue_name)
 
     @dramatiq.actor(queue_name=queue_name)
-    def do_work():
+    def enqueue():
         pass
 
     for i in range(20):
-        do_work.send(i)
+        enqueue.send(i)
     consumer = asq_broker.consume(queue_name)
 
     msg = next(consumer)
@@ -218,3 +224,17 @@ def test_nacked_messages_go_to_dlq(queue_name):
     dlq = asq._get_dlq_client(queue_name)
     dlqd_msg = dlq.receive_message()
     assert dlqd_msg.content == msg_content
+
+
+def test_variable_processing_time(asq_broker, queue_name):
+    db = {}
+
+    # Given a broker
+    @dramatiq.actor(queue_name=queue_name)
+    def do_work(task_id, inputs, compositions):
+        delay = random.randint(1, 5)
+        time.sleep(delay)
+        db[task_id] = (inputs, compositions)
+
+    for i in range(1, 10):
+        do_work.send(i, "test", "test")

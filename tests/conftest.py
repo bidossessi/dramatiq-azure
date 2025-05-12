@@ -39,7 +39,7 @@ def asq_broker():
 @pytest.fixture
 def queue_name():
     letters = string.ascii_lowercase
-    result_str = "".join(random.choice(letters) for i in range(7))
+    result_str = "".join(random.choice(letters) for i in range(10))
     return f"queue{result_str}"
 
 

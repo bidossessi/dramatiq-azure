@@ -27,7 +27,13 @@ poetry run pre-commit install
 poetry run pre-commit install --hook-type commit-msg
 ```
 
-Make sure the tests pass first (you will need [azurite](https://github.com/Azure/Azurite) running for this):
+Tests require a running [Azurite](https://github.com/Azure/Azurite) instance. You can easily launch `azurite` through [Docker](https://www.docker.com/) in another terminal.
+
+```shell
+docker run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
+```
+
+Make sure the tests pass first:
 
 ```shell
 poetry run pytest

@@ -12,6 +12,7 @@ import dramatiq
 from azure.core.exceptions import (
     HttpResponseError,
     ResourceExistsError,
+    ResourceNotFoundError,
 )
 from azure.storage.queue import (
     BinaryBase64DecodePolicy,
@@ -126,9 +127,11 @@ class ASQConsumer(dramatiq.Consumer):
         return len(self.queued_message_ids) + len(self.message_cache)
 
     def __remove_from_queue(self, message: _ASQMessage):
-        self.q_client.delete_message(message._asq_message)
-        if message.message_id in self.queued_message_ids:
-            self.queued_message_ids.remove(message.message_id)
+        try:
+            self.q_client.delete_message(message._asq_message)
+        finally:
+            if message.message_id in self.queued_message_ids:
+                self.queued_message_ids.remove(message.message_id)
 
     def ack(self, message: _ASQMessage) -> None:
         self.__remove_from_queue(message)
@@ -199,10 +202,12 @@ class ASQBroker(dramatiq.Broker):
         *,
         dead_letter: bool = False,
         middleware=None,
+        create_queue=True,
     ) -> None:
         super().__init__(middleware=middleware)
         self.queues: set = set()
         self.dead_letter = dead_letter
+        self.create_queue = create_queue
 
     @property
     def consumer_class(self):
@@ -228,17 +233,9 @@ class ASQBroker(dramatiq.Broker):
     def declare_queue(self, queue_name: str) -> None:
         if queue_name not in self.queues:
             self.emit_before("declare_queue", queue_name)
-            try:
-                q_client = _get_client(queue_name)
-                q_client.create_queue()
-            except ResourceExistsError:
-                logger.warning(f"Queue already exists: {queue_name}")
+            self._create_queue_if_required(_get_client(queue_name))
             if self.dead_letter:
-                try:
-                    dlq_client = _get_dlq_client(queue_name)
-                    dlq_client.create_queue()
-                except ResourceExistsError:
-                    logger.warning(f"DL Queue already exists: {queue_name}")
+                self._create_queue_if_required(_get_dlq_client(queue_name))
             self.queues.add(queue_name)
             self.emit_after("declare_queue", queue_name)
 
@@ -278,3 +275,15 @@ class ASQBroker(dramatiq.Broker):
 
     def get_declared_delay_queues(self) -> Iterable[str]:
         return set()
+
+    def _create_queue_if_required(self, queue_client: QueueClient) -> None:
+        try:
+            queue_client.get_queue_properties()
+        except ResourceNotFoundError:
+            if self.create_queue:
+                try:
+                    queue_client.create_queue()
+                except ResourceExistsError:
+                    pass  # someone did it first
+            else:
+                raise

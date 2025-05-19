@@ -23,7 +23,7 @@ def asq_broker():
             TimeLimit(),
             Callbacks(),
             Pipelines(),
-            Retries(min_backoff=1000, max_backoff=900000, max_retries=96),
+            Retries(min_backoff=1000, max_backoff=900000, max_retries=2),
         ],
     )
     dramatiq.set_broker(broker)

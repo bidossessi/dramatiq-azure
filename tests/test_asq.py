@@ -1,4 +1,3 @@
-import random
 import time
 
 import dramatiq
@@ -226,15 +225,39 @@ def test_nacked_messages_go_to_dlq(queue_name):
     assert dlqd_msg.content == msg_content
 
 
-def test_variable_processing_time(asq_broker, queue_name):
+def test_task_exception_doesnt_hang_consumer(asq_broker, worker, queue_name):
     db = {}
 
-    # Given a broker
+    # Given a broker that can raise an unhandled exception
     @dramatiq.actor(queue_name=queue_name)
-    def do_work(task_id, inputs, compositions):
-        delay = random.randint(1, 5)
-        time.sleep(delay)
+    def do_work(task_id: int, inputs: str, compositions: str):
+        if task_id == 2:
+            raise Exception("Task failed for some reason")
         db[task_id] = (inputs, compositions)
 
-    for i in range(1, 10):
+    # If I send some tasks
+    for i in range(1, 4):
         do_work.send(i, "test", "test")
+        time.sleep(5)
+
+    # Then the consumer should be resilient to the failed task
+    assert len(db) == 2
+
+
+def test_task_timeout_doesnt_hang_consumer(asq_broker, worker, queue_name):
+    db = []
+
+    # Given a broker that can time out
+    @dramatiq.actor(queue_name=queue_name)
+    def do_work(task_id: int):
+        if task_id == 2:
+            time.sleep(10)
+        db.append(task_id)
+
+    # If I send some tasks
+    for i in range(1, 4):
+        do_work.send(i)
+        time.sleep(5)
+
+    # Then the consumer should be resilient to the timed out task
+    assert len(db) == 2

@@ -107,8 +107,8 @@ class ASQConsumer(dramatiq.Consumer):
         self, broker: dramatiq.Broker, options: ConsumerOptions
     ) -> None:
         self.prefetch = min(options.prefetch, MAX_PREFETCH)
-        self.timeout = options.timeout
-        self.visibility_timeout = int(options.timeout / 1000)
+        self.timeout = max(options.timeout, MIN_TIMEOUT)
+        self.visibility_timeout = int(self.timeout / 1000)
         self.queue_name = options.queue_name
         self.dead_letter = options.dead_letter
         self.q_client = _get_client(options.queue_name)
@@ -126,7 +126,10 @@ class ASQConsumer(dramatiq.Consumer):
         return len(self.queued_message_ids) + len(self.message_cache)
 
     def __remove_from_queue(self, message: _ASQMessage):
-        self.q_client.delete_message(message._asq_message)
+        try:
+            self.q_client.delete_message(message._asq_message)
+        except Exception as e:
+            logger.error(e)
         if message.message_id in self.queued_message_ids:
             self.queued_message_ids.remove(message.message_id)
 
@@ -136,7 +139,7 @@ class ASQConsumer(dramatiq.Consumer):
     def nack(self, message: _ASQMessage) -> None:
         """
         Send to the dead-letter queue, if available.
-        Dead-leter queues are meant to be managed manually.
+        Dead-letter queues are meant to be managed manually.
         """
         if self.dlq_client is not None:
             self.dlq_client.send_message(message._message.encode())

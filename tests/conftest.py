@@ -15,7 +15,7 @@ from dramatiq_azure import asq
 
 
 @pytest.fixture
-def asq_broker():
+def broker():
     broker = asq.ASQBroker(
         dead_letter=True,
         middleware=[
@@ -23,7 +23,7 @@ def asq_broker():
             TimeLimit(),
             Callbacks(),
             Pipelines(),
-            Retries(min_backoff=1000, max_backoff=900000, max_retries=96),
+            Retries(min_backoff=1000, max_backoff=900000, max_retries=2),
         ],
     )
     dramatiq.set_broker(broker)
@@ -39,13 +39,13 @@ def asq_broker():
 @pytest.fixture
 def queue_name():
     letters = string.ascii_lowercase
-    result_str = "".join(random.choice(letters) for i in range(7))
+    result_str = "".join(random.choice(letters) for i in range(10))
     return f"queue{result_str}"
 
 
 @pytest.fixture
-def worker(asq_broker):
-    worker = dramatiq.Worker(asq_broker, worker_threads=1)
+def worker(broker):
+    worker = dramatiq.Worker(broker)
     worker.start()
     yield worker
     worker.stop()

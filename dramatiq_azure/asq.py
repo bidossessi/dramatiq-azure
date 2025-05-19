@@ -101,14 +101,17 @@ class _ASQMessage(dramatiq.MessageProxy):
         dramatiq_message = dramatiq.Message.decode(_message.content)
         return cls(_message, dramatiq_message)
 
+    def __repr__(self) -> str:
+        return str(self._message)
+
 
 class ASQConsumer(dramatiq.Consumer):
     def __init__(
         self, broker: dramatiq.Broker, options: ConsumerOptions
     ) -> None:
         self.prefetch = min(options.prefetch, MAX_PREFETCH)
-        self.timeout = options.timeout
-        self.visibility_timeout = int(options.timeout / 1000)
+        self.timeout = max(options.timeout, MIN_TIMEOUT)
+        self.visibility_timeout = int(self.timeout / 1000)
         self.queue_name = options.queue_name
         self.dead_letter = options.dead_letter
         self.q_client = _get_client(options.queue_name)
@@ -122,11 +125,14 @@ class ASQConsumer(dramatiq.Consumer):
         self.misses = 0
 
     @property
-    def outstanding_message_count(self):
+    def fetched_message_count(self):
         return len(self.queued_message_ids) + len(self.message_cache)
 
     def __remove_from_queue(self, message: _ASQMessage):
-        self.q_client.delete_message(message._asq_message)
+        try:
+            self.q_client.delete_message(message._asq_message)
+        except Exception as e:
+            logger.error(e)
         if message.message_id in self.queued_message_ids:
             self.queued_message_ids.remove(message.message_id)
 
@@ -136,7 +142,7 @@ class ASQConsumer(dramatiq.Consumer):
     def nack(self, message: _ASQMessage) -> None:
         """
         Send to the dead-letter queue, if available.
-        Dead-leter queues are meant to be managed manually.
+        Dead-letter queues are meant to be managed manually.
         """
         if self.dlq_client is not None:
             self.dlq_client.send_message(message._message.encode())
@@ -145,39 +151,38 @@ class ASQConsumer(dramatiq.Consumer):
     def requeue(self, messages: Iterable[_ASQMessage]) -> None:
         # No batch processing
         for message in messages:
-            self.q_client.send_message(message._message.encode())
             self.__remove_from_queue(message)
+            self.q_client.send_message(message._message.encode())
 
     def __next__(self) -> Optional[_ASQMessage]:
-        while True:
+        if not len(self.message_cache):
+            msg_batch = []
+            fillout = self.prefetch - self.fetched_message_count
+            kw = {"max_messages": fillout}
+            if self.visibility_timeout is not None:
+                kw["visibility_timeout"] = self.visibility_timeout
+            pager = self.q_client.receive_messages(**kw)
             try:
-                match = self.message_cache.pop(0)
-                self.misses = 0
-                self.queued_message_ids.add(match.message_id)
-                return match
-            except IndexError:
-                msg_batch = []
-                if self.outstanding_message_count < self.prefetch:
-                    fillout = self.prefetch - self.outstanding_message_count
-                    kw = {"messages_per_page": fillout}
-                    if self.visibility_timeout is not None:
-                        kw["visibility_timeout"] = self.visibility_timeout
-                    pager = self.q_client.receive_messages(**kw)
-                    try:
-                        msg_batch = [item for item in next(pager.by_page())]
-                        self.message_cache = [
-                            _ASQMessage.from_queue_message(_msg)
-                            for _msg in msg_batch
-                        ]
-                    except StopIteration:
-                        self.message_cache = []
+                msg_batch = list(pager)
+                self.message_cache = [
+                    _ASQMessage.from_queue_message(_msg) for _msg in msg_batch
+                ]
+            except StopIteration:
+                self.message_cache = []
 
-                if not msg_batch:
-                    self.misses, backoff_ms = compute_backoff(
-                        self.misses, max_backoff=self.timeout
-                    )
-                    time.sleep(backoff_ms / 1000)
-                    return None
+            if not msg_batch:
+                self.misses, backoff_ms = compute_backoff(
+                    self.misses, max_backoff=self.timeout
+                )
+                time.sleep(backoff_ms / 1000)
+
+        try:
+            match = self.message_cache.pop(0)
+            self.misses = 0
+            self.queued_message_ids.add(match.message_id)
+            return match
+        except IndexError:
+            return None
 
 
 class ASQBroker(dramatiq.Broker):

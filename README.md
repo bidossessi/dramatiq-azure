@@ -64,20 +64,6 @@ The following environment variables can be used to configure the broker:
 - `AZURE_QUEUE_ACCOUNT_URL`: Azure Storage account URL;
 - `DRAMATIQ_ASQ_MIN_TIMEOUT`: The minimum time to wait between polls in second.
 
-## Tests
-
-Tests require a running [Azurite](https://github.com/Azure/Azurite) instance. You can easily launch `azurite` through [Docker](https://www.docker.com/).
-
-```shell
-docker run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
-```
-
-Run the test suite
-
-```shell
-pytest
-```
-
 ## Contributions
 
 Found an itch you know how to scratch? PR welcome (just remember to read the

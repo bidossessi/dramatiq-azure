@@ -1,3 +1,4 @@
+import logging
 import time
 
 import dramatiq
@@ -6,8 +7,10 @@ from azure.storage.queue import QueueClient
 
 from dramatiq_azure import asq
 
+logger = logging.getLogger(__name__)
 
-def test_can_enqueue_and_process_messages(asq_broker, worker, queue_name):
+
+def test_can_enqueue_and_process_messages(broker, worker, queue_name):
     # Given an actor that stores incoming messages in a database
     db = []
 
@@ -25,9 +28,7 @@ def test_can_enqueue_and_process_messages(asq_broker, worker, queue_name):
     assert db == [1]
 
 
-def test_limits_prefetch_if_consumer_queue_is_full(
-    asq_broker, worker, queue_name
-):
+def test_limits_prefetch_if_consumer_queue_is_full(broker, worker, queue_name):
     # Given an actor that stores incoming messages in a database
     db = []
 
@@ -51,7 +52,7 @@ def test_limits_prefetch_if_consumer_queue_is_full(
     assert len(db) == 1
 
 
-def test_can_enqueue_delayed_messages(asq_broker, worker, queue_name):
+def test_can_enqueue_delayed_messages(broker, worker, queue_name):
     # Given an actor that stores incoming messages in a database
     db = []
 
@@ -81,7 +82,7 @@ def test_can_enqueue_delayed_messages(asq_broker, worker, queue_name):
     assert delta >= 5
 
 
-def test_cant_delay_messages_for_longer_than_7_days(asq_broker, queue_name):
+def test_cant_delay_messages_for_longer_than_7_days(broker, queue_name):
     # Given an actor
     @dramatiq.actor(queue_name=queue_name)
     def do_work():
@@ -93,7 +94,7 @@ def test_cant_delay_messages_for_longer_than_7_days(asq_broker, queue_name):
         do_work.send_with_options(delay=7 * 24 * 60 * 60 * 1001)
 
 
-def test_cant_enqueue_messages_that_are_too_large(asq_broker, queue_name):
+def test_cant_enqueue_messages_that_are_too_large(broker, queue_name):
     # Given that I have an actor
     @dramatiq.actor(queue_name=queue_name)
     def do_work(s):
@@ -105,7 +106,7 @@ def test_cant_enqueue_messages_that_are_too_large(asq_broker, queue_name):
         do_work.send("a" * 64 * 1024)
 
 
-def test_can_requeue_consumed_messages(asq_broker, queue_name):
+def test_can_requeue_consumed_messages(broker, queue_name):
     db = []
     # Given an actor
 
@@ -117,7 +118,7 @@ def test_can_requeue_consumed_messages(asq_broker, queue_name):
     do_work.send("test")
 
     # And consume the message off the queue
-    consumer = asq_broker.consume(queue_name)
+    consumer = broker.consume(queue_name)
     first_message = next(consumer)
 
     # And requeue the message
@@ -129,11 +130,11 @@ def test_can_requeue_consumed_messages(asq_broker, queue_name):
 
 
 def test_creates_dead_letter_queue():
-    # Given that I have an SQS asq_broker with dead letters turned on
-    asq_broker = asq.ASQBroker(dead_letter=True)
+    # Given that I have an ASQ broker with dead letters turned on
+    broker = asq.ASQBroker(dead_letter=True)
 
     # When I create a queue
-    asq_broker.declare_queue("test")
+    broker.declare_queue("test")
 
     # Then a dead-letter queue should be created
     dlq = asq._get_dlq_client("test")
@@ -141,11 +142,11 @@ def test_creates_dead_letter_queue():
 
 
 def test_consumer_returns_none_with_empty_queue(queue_name):
-    asq_broker = asq.ASQBroker(dead_letter=False)
-    asq_broker.declare_queue(queue_name)
+    broker = asq.ASQBroker(dead_letter=False)
+    broker.declare_queue(queue_name)
 
     # Consume a message off an empty queue
-    consumer = asq_broker.consume(queue_name)
+    consumer = broker.consume(queue_name)
     first_message = next(consumer)
 
     # As the queue is empty message should be None
@@ -156,7 +157,7 @@ def test_consumer_returns_none_with_empty_queue(queue_name):
     assert not second_message
 
 
-def test_flushed_queues_returns_no_message(asq_broker, queue_name):
+def test_flushed_queues_returns_no_message(broker, queue_name):
     # Given an actor
     @dramatiq.actor(queue_name=queue_name)
     def do_work():
@@ -167,41 +168,41 @@ def test_flushed_queues_returns_no_message(asq_broker, queue_name):
         do_work.send()
 
     # And flush the queue
-    asq_broker.flush_all()
+    broker.flush_all()
 
     # Then the consumer returns no message
-    consumer = asq_broker.consume(queue_name)
+    consumer = broker.consume(queue_name)
     assert not next(consumer)
 
 
 def test_invalid_queue_fails(queue_name):
     # Given a broker
-    asq_broker = asq.ASQBroker(dead_letter=False)
+    broker = asq.ASQBroker(dead_letter=False)
 
     # When I attempt to consume from an undeclared queue
     # Then an exception is raised
     with pytest.raises(dramatiq.errors.QueueNotFound):
-        asq_broker.validate_queue(queue_name)
+        broker.validate_queue(queue_name)
 
 
 def test_redeclare_queue_passes(queue_name):
     # Given a broker and a declared queue
-    asq_broker = asq.ASQBroker(dead_letter=True)
-    asq_broker.declare_queue(queue_name)
+    broker = asq.ASQBroker(dead_letter=True)
+    broker.declare_queue(queue_name)
 
     # When I attempt to redeclare an existing queue
-    asq_broker.declare_queue(queue_name)
-    asq_broker.declare_queue(queue_name)
-    asq_broker.declare_queue(queue_name)
+    broker.declare_queue(queue_name)
+    broker.declare_queue(queue_name)
+    broker.declare_queue(queue_name)
 
     # Then there's only one queue created
-    assert len(asq_broker.queues) == 1
+    assert len(broker.queues) == 1
 
 
 def test_nacked_messages_go_to_dlq(queue_name):
     # Given an actor and a consumer, and some queued messages
-    asq_broker = asq.ASQBroker(dead_letter=True)
-    asq_broker.declare_queue(queue_name)
+    broker = asq.ASQBroker(dead_letter=True)
+    broker.declare_queue(queue_name)
 
     @dramatiq.actor(queue_name=queue_name)
     def enqueue():
@@ -209,7 +210,7 @@ def test_nacked_messages_go_to_dlq(queue_name):
 
     for i in range(20):
         enqueue.send(i)
-    consumer = asq_broker.consume(queue_name)
+    consumer = broker.consume(queue_name)
 
     msg = next(consumer)
     msg_content = msg._asq_message.content
@@ -225,26 +226,26 @@ def test_nacked_messages_go_to_dlq(queue_name):
     assert dlqd_msg.content == msg_content
 
 
-def test_task_exception_doesnt_hang_consumer(asq_broker, worker, queue_name):
-    db = {}
+def test_task_exception_doesnt_hang_consumer(broker, worker, queue_name):
+    db = []
 
     # Given a broker that can raise an unhandled exception
     @dramatiq.actor(queue_name=queue_name)
-    def do_work(task_id: int, inputs: str, compositions: str):
+    def do_work(task_id: int):
         if task_id == 2:
             raise Exception("Task failed for some reason")
-        db[task_id] = (inputs, compositions)
+        db.append(task_id)
 
     # If I send some tasks
     for i in range(1, 4):
-        do_work.send(i, "test", "test")
+        do_work.send(i)
         time.sleep(5)
 
     # Then the consumer should be resilient to the failed task
-    assert len(db) == 2
+    assert db == [1, 3]
 
 
-def test_task_timeout_doesnt_hang_consumer(asq_broker, worker, queue_name):
+def test_task_timeout_doesnt_hang_consumer(broker, worker, queue_name):
     db = []
 
     # Given a broker that can time out
@@ -260,4 +261,4 @@ def test_task_timeout_doesnt_hang_consumer(asq_broker, worker, queue_name):
         time.sleep(5)
 
     # Then the consumer should be resilient to the timed out task
-    assert len(db) == 2
+    assert db == [1, 3]

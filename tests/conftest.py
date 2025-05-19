@@ -15,7 +15,7 @@ from dramatiq_azure import asq
 
 
 @pytest.fixture
-def asq_broker():
+def broker():
     broker = asq.ASQBroker(
         dead_letter=True,
         middleware=[
@@ -44,8 +44,8 @@ def queue_name():
 
 
 @pytest.fixture
-def worker(asq_broker):
-    worker = dramatiq.Worker(asq_broker, worker_threads=1)
+def worker(broker):
+    worker = dramatiq.Worker(broker)
     worker.start()
     yield worker
     worker.stop()

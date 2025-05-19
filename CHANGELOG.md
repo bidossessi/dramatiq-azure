@@ -1,3 +1,9 @@
+## v0.3.2 (2025-05-19)
+
+### Fix
+
+- handle actor timeout / exception
+
 ## v0.3.1 (2023-09-01)
 
 ### Refactor

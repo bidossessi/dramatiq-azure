@@ -68,7 +68,7 @@ def _get_client(queue_name: str) -> QueueClient:
         return QueueClient(
             account_url=ACCOUNT_URL,
             queue_name=queue_name,
-            credential=DefaultAzureCredential(),  # type: ignore
+            credential=DefaultAzureCredential(),
             message_encode_policy=BinaryBase64EncodePolicy(),
             message_decode_policy=BinaryBase64DecodePolicy(),
         )

@@ -4,10 +4,6 @@ name = "cz_conventional_commits"
 version = "0.3.2"
 tag_format = "v$version"
 update_changelog_on_bump = true
-version_files = [
-    "pyproject.toml:version",
-    "dramatiq_azure/__version__.py",
-]
 
 [tool.poetry]
 name = "dramatiq_azure"

@@ -3,7 +3,10 @@ import time
 
 import dramatiq
 import pytest
-from azure.storage.queue import QueueClient
+from azure.storage.queue import (
+    QueueClient,
+    QueueMessage,
+)
 
 from dramatiq_azure import asq
 
@@ -262,3 +265,46 @@ def test_task_timeout_doesnt_hang_consumer(broker, worker, queue_name):
 
     # Then the consumer should be resilient to the timed out task
     assert db == [1, 3]
+
+
+def test_asq_message_repr():
+    # Given a dramatiq message and queue message
+    dramatiq_message = dramatiq.Message(
+        queue_name="test",
+        actor_name="test_actor",
+        args=(1, 2),
+        kwargs={},
+        options={},
+    )
+    queue_message = QueueMessage(content=dramatiq_message.encode())
+
+    # When I create an ASQ message
+    asq_message = asq._ASQMessage(queue_message, dramatiq_message)
+
+    # Then repr should return the string representation of the queue message
+    repr_str = repr(asq_message)
+    assert isinstance(repr_str, str)
+    assert len(repr_str) > 0
+
+
+def test_consumer_handles_stop_iteration_on_receive():
+    # Given a broker and consumer
+    broker = asq.ASQBroker(dead_letter=False)
+    queue_name = "test-stop-iteration"
+    broker.declare_queue(queue_name)
+    consumer = broker.consume(queue_name)
+
+    # When receive_messages raises StopIteration
+    from unittest.mock import (
+        MagicMock,
+        patch,
+    )
+
+    with patch.object(consumer.q_client, "receive_messages") as mock_receive:
+        mock_pager = MagicMock()
+        mock_pager.__iter__ = MagicMock(side_effect=StopIteration)
+        mock_receive.return_value = mock_pager
+
+        # Then the consumer should handle it gracefully
+        message = next(consumer)
+        assert message is None

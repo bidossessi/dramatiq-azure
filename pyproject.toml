@@ -4,10 +4,13 @@ name = "cz_conventional_commits"
 version = "1.0.0"
 tag_format = "v$version"
 update_changelog_on_bump = true
+version_files = [
+  "pyproject.toml:version",
+]
 
 [tool.poetry]
 name = "dramatiq_azure"
-version = "0.3.2"
+version = "1.0.0"
 description = "Azure Queue Brokers for Dramatiq"
 authors = ["Stanislas H.B. Sodonon <stanislas.sodonon@gmail.com>"]
 repository = "https://github.com/bidossessi/dramatiq-azure"

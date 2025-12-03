@@ -1,3 +1,13 @@
+## v1.0.0 (2025-12-03)
+
+### BREAKING CHANGE
+
+- - closes #148
+
+### Feat
+
+- update to dramatiq 2.0.0
+
 ## v0.3.2 (2025-05-19)
 
 ### Fix

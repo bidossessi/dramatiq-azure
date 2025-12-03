@@ -6,6 +6,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    TypeGuard,
 )
 
 import dramatiq
@@ -105,6 +106,10 @@ class _ASQMessage(dramatiq.MessageProxy):
         return str(self._message)
 
 
+def _is_asq_message(message: dramatiq.MessageProxy) -> TypeGuard[_ASQMessage]:
+    return isinstance(message, _ASQMessage)
+
+
 class ASQConsumer(dramatiq.Consumer):
     def __init__(
         self, broker: dramatiq.Broker, options: ConsumerOptions
@@ -121,7 +126,7 @@ class ASQConsumer(dramatiq.Consumer):
 
         # local cache
         self.message_cache: List[_ASQMessage] = []
-        self.queued_message_ids = set()
+        self.queued_message_ids: set[str] = set()
         self.misses = 0
 
     @property
@@ -136,21 +141,24 @@ class ASQConsumer(dramatiq.Consumer):
         if message.message_id in self.queued_message_ids:
             self.queued_message_ids.remove(message.message_id)
 
-    def ack(self, message: _ASQMessage) -> None:
+    def ack(self, message: dramatiq.MessageProxy) -> None:
+        assert _is_asq_message(message), "ASQConsumer requires _ASQMessage"
         self.__remove_from_queue(message)
 
-    def nack(self, message: _ASQMessage) -> None:
+    def nack(self, message: dramatiq.MessageProxy) -> None:
         """
         Send to the dead-letter queue, if available.
         Dead-letter queues are meant to be managed manually.
         """
+        assert _is_asq_message(message), "ASQConsumer requires _ASQMessage"
         if self.dlq_client is not None:
             self.dlq_client.send_message(message._message.encode())
         self.__remove_from_queue(message)
 
-    def requeue(self, messages: Iterable[_ASQMessage]) -> None:
+    def requeue(self, messages: Iterable[dramatiq.MessageProxy]) -> None:
         # No batch processing
         for message in messages:
+            assert _is_asq_message(message), "ASQConsumer requires _ASQMessage"
             self.__remove_from_queue(message)
             self.q_client.send_message(message._message.encode())
 
@@ -278,8 +286,8 @@ class ASQBroker(dramatiq.Broker):
         for queue_name in self.queues:
             self.flush(queue_name)
 
-    def get_declared_queues(self) -> Iterable[str]:
+    def get_declared_queues(self) -> set[str]:
         return self.queues
 
-    def get_declared_delay_queues(self) -> Iterable[str]:
+    def get_declared_delay_queues(self) -> set[str]:
         return set()

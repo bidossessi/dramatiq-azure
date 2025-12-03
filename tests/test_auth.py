@@ -4,6 +4,7 @@ from unittest.mock import (
     patch,
 )
 
+import pytest
 from azure.storage.queue import QueueClient
 
 from dramatiq_azure import asq
@@ -36,6 +37,7 @@ def test_get_client_uses_connection_string_when_available():
 
 def test_get_client_uses_default_azure_credential_without_connection_string():
     """Test that _get_client uses DefaultAzureCredential when CONN_STR is not set."""
+    pytest.importorskip("azure.identity")
     account_url = "https://testaccount.queue.core.windows.net"
 
     with patch.object(asq, "CONN_STR", ""), patch.object(
@@ -64,6 +66,7 @@ def test_get_client_uses_default_azure_credential_without_connection_string():
 
 def test_get_client_respects_custom_account_url():
     """Test that _get_client uses custom AZURE_QUEUE_ACCOUNT_URL when provided."""
+    pytest.importorskip("azure.identity")
     custom_url = "https://custom.queue.example.com"
 
     with patch.object(asq, "CONN_STR", ""), patch.object(
@@ -90,6 +93,7 @@ def test_get_client_respects_custom_account_url():
 
 def test_get_client_uses_http_when_ssl_disabled():
     """Test that _get_client uses http protocol when AZURE_SSL is false."""
+    pytest.importorskip("azure.identity")
     http_url = "http://testaccount.queue.core.windows.net"
 
     with patch.object(asq, "CONN_STR", ""), patch.object(

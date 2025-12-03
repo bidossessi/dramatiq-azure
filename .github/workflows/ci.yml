@@ -34,9 +34,9 @@ jobs:
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
+        run: poetry install --no-interaction --no-root --all-extras
       - name: Install project
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --all-extras
       - name: Lint code
         uses: psf/black@stable
       - name: Run Tests

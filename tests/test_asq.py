@@ -48,7 +48,8 @@ def test_limits_prefetch_if_consumer_queue_is_full(broker, worker, queue_name):
         db.append(x)
         time.sleep(10)
 
-    # When I send that actor messages, it'll only prefetch and process a single message
+    # When I send that actor messages, it'll only prefetch and process
+    # a single message
     do_work.send(1)
     do_work.send(2)
 
@@ -95,7 +96,8 @@ def test_cant_delay_messages_for_longer_than_7_days(broker, queue_name):
     def do_work():
         pass
 
-    # When I attempt to send that actor a message farther than 7 days into the future
+    # When I attempt to send that actor a message farther than 7 days
+    # into the future
     # Then I should get back a DelayTooLong
     with pytest.raises(DelayTooLong):
         do_work.send_with_options(delay=7 * 24 * 60 * 60 * 1001)

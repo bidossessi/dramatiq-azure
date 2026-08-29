@@ -1,3 +1,15 @@
+## v2.0.0 (2026-08-29)
+
+### BREAKING CHANGE
+
+- enqueue, nack and requeue raise ASQError subclasses
+instead of RuntimeError. Callers catching RuntimeError must catch
+dramatiq_azure.ASQError or dramatiq.errors.BrokerError instead.
+
+### Feat
+
+- **errors**: distinguish oversized messages from overlong delays
+
 ## v1.0.0 (2025-12-03)
 
 ### BREAKING CHANGE

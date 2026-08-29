@@ -9,6 +9,10 @@ from azure.storage.queue import (
 )
 
 from dramatiq_azure import asq
+from dramatiq_azure.errors import (
+    DelayTooLong,
+    MessageTooLarge,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +96,8 @@ def test_cant_delay_messages_for_longer_than_7_days(broker, queue_name):
         pass
 
     # When I attempt to send that actor a message farther than 7 days into the future
-    # Then I should get back a RuntimeError
-    with pytest.raises(RuntimeError):
+    # Then I should get back a DelayTooLong
+    with pytest.raises(DelayTooLong):
         do_work.send_with_options(delay=7 * 24 * 60 * 60 * 1001)
 
 
@@ -104,8 +108,8 @@ def test_cant_enqueue_messages_that_are_too_large(broker, queue_name):
         pass
 
     # When I attempt to send that actor a message that's too large
-    # Then a RuntimeError should be raised
-    with pytest.raises(RuntimeError):
+    # Then a MessageTooLarge should be raised
+    with pytest.raises(MessageTooLarge):
         do_work.send("a" * 64 * 1024)
 
 

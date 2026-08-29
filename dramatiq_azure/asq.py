@@ -22,6 +22,8 @@ from azure.storage.queue import (
 )
 from dramatiq.common import compute_backoff
 
+from .errors import translate
+
 # Set the logging level for all azure-storage-* libraries
 azure_logger = logging.getLogger("azure")
 azure_logger.setLevel(logging.WARNING)
@@ -152,7 +154,10 @@ class ASQConsumer(dramatiq.Consumer):
         """
         assert _is_asq_message(message), "ASQConsumer requires _ASQMessage"
         if self.dlq_client is not None:
-            self.dlq_client.send_message(message._message.encode())
+            try:
+                self.dlq_client.send_message(message._message.encode())
+            except HttpResponseError as e:
+                raise translate(e) from e
         self.__remove_from_queue(message)
 
     def requeue(self, messages: Iterable[dramatiq.MessageProxy]) -> None:
@@ -160,7 +165,10 @@ class ASQConsumer(dramatiq.Consumer):
         for message in messages:
             assert _is_asq_message(message), "ASQConsumer requires _ASQMessage"
             self.__remove_from_queue(message)
-            self.q_client.send_message(message._message.encode())
+            try:
+                self.q_client.send_message(message._message.encode())
+            except HttpResponseError as e:
+                raise translate(e) from e
 
     def __next__(self) -> Optional[_ASQMessage]:
         if not len(self.message_cache):
@@ -275,7 +283,7 @@ class ASQBroker(dramatiq.Broker):
             self.emit_after("enqueue", message, delay)
             return message
         except HttpResponseError as e:
-            raise RuntimeError(str(e))
+            raise translate(e) from e
 
     def flush(self, queue_name: str):
         self.validate_queue(queue_name)
